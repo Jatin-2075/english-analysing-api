@@ -16,7 +16,7 @@ fluency.
   `you know`.
 - A combined fluency score based on pause frequency and pause duration.
 - Automatic interactive API documentation through Swagger UI and ReDoc.
-
+  
 ## Project status
 
 This repository currently contains the backend API only. There is no web or
