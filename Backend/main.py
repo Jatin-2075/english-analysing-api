@@ -1,0 +1,67 @@
+import io
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from mutagen.mp3 import MP3
+
+from Backend.services.audio_to_text import speech_to_text
+from Backend.services.word_per_min import word_per_min
+from Backend.services.pause_detection import analyze_pauses
+from Backend.services.grammer_analysis import analyze_grammar
+from Backend.services.filler_word import analyze_fillers
+from Backend.services.fluency import analyze_fluency
+
+app = FastAPI(title="english assessment")
+
+
+@app.get("/")
+def home():
+    return {"message": "running"}
+
+
+@app.post("/transcribe")
+async def transcribe_audio_api(file: UploadFile = File(...)):
+    if not file.filename or not file.filename.lower().endswith(".mp3"):
+        raise HTTPException(status_code=400,detail="upload a mp3",)
+
+    audio_bytes = await file.read()
+    await file.close()
+
+    if not audio_bytes:
+        raise HTTPException(status_code=400,detail="Audio file is empty",)
+
+    try:
+        audio_duration = MP3(io.BytesIO(audio_bytes)).info.length
+
+        transcript = speech_to_text(audio_bytes)
+
+        if not transcript.strip():
+            raise HTTPException(status_code=422,detail="No speech found",)
+
+        pace_result = word_per_min(transcript, audio_duration)
+
+        pause_result = analyze_pauses(audio_bytes)
+
+        grammar_result = analyze_grammar(transcript)
+
+        filler_result = analyze_fillers(transcript)
+
+        total_pause_duration = sum(pause_result["pause_durations_seconds"])
+
+        fluency_result = analyze_fluency(transcript,pause_result["pause_count"],total_pause_duration,)
+
+        return {
+            "transcript": transcript,
+            "analysis": {
+                "pace": pace_result,
+                "pauses": pause_result,
+                "grammar": grammar_result,
+                "filler_words": filler_result,
+                "fluency": fluency_result,
+            },
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500,detail=str(e),)

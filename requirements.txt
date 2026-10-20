@@ -1,0 +1,10 @@
+
+fastapi
+uvicorn[standard]
+python-multipart
+mutagen
+librosa
+soundfile
+openai-whisper
+language-tool-python
+requests
