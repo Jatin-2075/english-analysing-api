@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from Backend.services.audio_to_text import audio_duration_seconds, speech_to_text
+from Backend.services.audio_converter import webm_to_mp3
 from Backend.services.word_per_min import word_per_min
 from Backend.services.pause_detection import analyze_pauses
 from Backend.services.grammer_analysis import analyze_grammar
@@ -35,8 +36,14 @@ def home():
 
 @app.post("/transcribe")
 async def transcribe_audio_api(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.lower().endswith(".mp3"):
-        raise HTTPException(status_code=400, detail="Upload an MP3 file")
+    supported_extensions = (
+        ".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".flac"
+    )
+    if not file.filename or not file.filename.lower().endswith(supported_extensions):
+        raise HTTPException(
+            status_code=400,
+            detail="Upload an MP3, WAV, M4A, MP4, WebM, OGG, or FLAC file",
+        )
 
     audio_bytes = await file.read()
     await file.close()
@@ -45,6 +52,9 @@ async def transcribe_audio_api(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Audio file is empty")
 
     try:
+        if not file.filename.lower().endswith(".mp3"):
+            audio_bytes = webm_to_mp3(audio_bytes)
+
         audio_duration = audio_duration_seconds(audio_bytes)
         transcript = speech_to_text(audio_bytes)
 
@@ -84,6 +94,8 @@ async def transcribe_audio_api(file: UploadFile = File(...)):
             status_code=502,
             detail="External analysis service unavailable",
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except Exception as e:
         logger.exception("Audio analysis failed")
         raise HTTPException(status_code=500, detail=str(e))
