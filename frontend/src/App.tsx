@@ -66,6 +66,12 @@ type Data = {
 const numberOr = (value: number | undefined, fallback = 0) => value ?? fallback;
 const formatLabel = (value: string) => value.replace(/_/g, " ");
 
+function requestError(status?: number) {
+  if (status === undefined) return "Unable to reach the analysis service. Please try again later.";
+  if (status >= 500) return "The analysis service is temporarily unavailable. Please try again later.";
+  return "The analysis request could not be processed. Please check your input and try again.";
+}
+
 function Metric({
   label,
   value,
@@ -262,10 +268,12 @@ export default function App() {
     try {
       const form = new FormData(); form.append("file", file, file.name);
       const response = await fetch(`${API}/transcribe`, { method: "POST", body: form });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(requestError(response.status));
       setData(result);
-    } catch (caught) { setError(`${caught instanceof Error ? caught.message : "Request failed"}. API: ${API}`); }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : requestError());
+    }
     finally { setBusy(false); }
   }
 
@@ -273,10 +281,12 @@ export default function App() {
     setBusy(true); setError(""); setData(null);
     try {
       const response = await fetch(`${API}/analyze-text`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
+      const result = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(requestError(response.status));
       setData(result);
-    } catch (caught) { setError(`${caught instanceof Error ? caught.message : "Request failed"}. Check the API URL and CORS.`); }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : requestError());
+    }
     finally { setBusy(false); }
   }
 
