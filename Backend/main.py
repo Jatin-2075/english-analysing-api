@@ -4,13 +4,23 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from Backend.services.audio_to_text import audio_duration_seconds, speech_to_text
-from Backend.services.audio_converter import webm_to_mp3
-from Backend.services.word_per_min import word_per_min
-from Backend.services.pause_detection import analyze_pauses
-from Backend.services.grammer_analysis import analyze_grammar
-from Backend.services.filler_word import analyze_fillers
-from Backend.services.fluency import analyze_fluency
+if __package__:
+    from .services.audio_to_text import audio_duration_seconds, speech_to_text
+    from .services.audio_converter import webm_to_mp3
+    from .services.word_per_min import word_per_min
+    from .services.pause_detection import analyze_pauses
+    from .services.grammer_analysis import analyze_grammar
+    from .services.filler_word import analyze_fillers
+    from .services.fluency import analyze_fluency
+else:
+    from services.audio_to_text import audio_duration_seconds, speech_to_text
+    from services.audio_converter import webm_to_mp3
+    from services.word_per_min import word_per_min
+    from services.pause_detection import analyze_pauses
+    from services.grammer_analysis import analyze_grammar
+    from services.filler_word import analyze_fillers
+    from services.fluency import analyze_fluency
+
 import logging
 
 logging.basicConfig(level=logging.INFO)
