@@ -1,18 +1,30 @@
-import io
 import requests
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from mutagen.mp3 import MP3
 
-from Backend.services.audio_to_text import speech_to_text
+from Backend.services.audio_to_text import audio_duration_seconds, speech_to_text
 from Backend.services.word_per_min import word_per_min
 from Backend.services.pause_detection import analyze_pauses
 from Backend.services.grammer_analysis import analyze_grammar
 from Backend.services.filler_word import analyze_fillers
 from Backend.services.fluency import analyze_fluency
+import logging
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 app = FastAPI(title="English Assessment")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -32,7 +44,7 @@ async def transcribe_audio_api(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Audio file is empty")
 
     try:
-        audio_duration = MP3(io.BytesIO(audio_bytes)).info.length
+        audio_duration = audio_duration_seconds(audio_bytes)
         transcript = speech_to_text(audio_bytes)
 
         if not transcript.strip():
@@ -72,6 +84,7 @@ async def transcribe_audio_api(file: UploadFile = File(...)):
             detail="External analysis service unavailable",
         )
     except Exception as e:
+        logger.exception("Audio analysis failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 

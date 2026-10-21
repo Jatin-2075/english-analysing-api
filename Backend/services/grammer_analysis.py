@@ -14,7 +14,7 @@ def analyze_grammar(transcript: str) -> dict:
     for match in matches:
         errors.append({
             "message": match.message,
-            "mistake": transcript[match.offset:match.offset + match.errorLength],
+            "mistake": transcript[match.offset:match.offset + match.error_length],
             "suggestions": match.replacements[:5],
             "category": match.category,
         })

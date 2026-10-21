@@ -1,13 +1,14 @@
 # English Assessment API
 
 An audio-based English speaking assessment service built with Python and FastAPI.
-The API accepts an English `.mp3` recording, transcribes it, and returns a
+The API accepts an English audio recording, transcribes it, and returns a
 structured assessment of speaking pace, pauses, grammar, filler words, and
-fluency.
+fluency. Browser recordings and common formats including WebM, MP3, WAV, M4A,
+MP4, OGG, and FLAC are supported.
 
 ## Features
 
-- MP3 upload through a FastAPI endpoint.
+- Audio upload through a FastAPI endpoint.
 - Speech-to-text transcription using OpenAI Whisper (`base` model).
 - Words-per-minute calculation based on the transcript and audio duration.
 - Silence/pause detection using `librosa`.
@@ -153,12 +154,13 @@ Response:
 
 ### `POST /transcribe`
 
-Uploads an MP3 file and returns the transcript plus the complete assessment.
+Uploads an audio file and returns the transcript plus the complete assessment.
 
 #### Request
 
 Send the file as a multipart form field named `file`. The filename must end in
-`.mp3` (the extension check is case-insensitive).
+`.mp3`, `.wav`, `.m4a`, `.mp4`, `.webm`, `.ogg`, or `.flac` (the extension
+check is case-insensitive).
 
 PowerShell:
 
@@ -219,7 +221,7 @@ LanguageTool results.
 
 | Status | Cause |
 | ---: | --- |
-| `400` | The upload is not an MP3 or the file is empty. |
+| `400` | The upload format is unsupported or the file is empty. |
 | `422` | The audio contains no recognizable speech. |
 | `500` | An unexpected processing failure occurred, such as a missing runtime dependency or an unreadable audio file. |
 
@@ -238,7 +240,8 @@ Errors are returned using FastAPI's standard shape:
 `words_per_minute = word_count / audio_duration_seconds * 60`
 
 The word count is calculated from the Whisper transcript using whitespace
-separation. The audio duration is read from the MP3 metadata with `mutagen`.
+separation. Audio is decoded through FFmpeg at 16 kHz for consistent duration
+and pause calculations across supported formats.
 
 ### Pauses
 
@@ -357,11 +360,11 @@ limited memory, use the `tiny` model in `audio_to_text.py`; if transcription
 quality is insufficient, use a larger model on a machine with adequate
 resources.
 
-### An MP3 cannot be decoded
+### An audio file cannot be decoded
 
-Confirm that the file is a valid MP3 and can be opened by FFmpeg. The endpoint
-intentionally accepts MP3 files only, even though some underlying libraries can
-decode other formats.
+Confirm that the file is valid and can be opened by FFmpeg. The endpoint
+supports common browser and uploaded audio formats, but still requires FFmpeg
+to be installed and available on `PATH`.
 
 ### Slow requests
 
