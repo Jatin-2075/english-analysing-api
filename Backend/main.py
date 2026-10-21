@@ -26,18 +26,18 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 app = FastAPI(title="English Assessment")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://frontend-xi-one-33.vercel.app/",
+        "https://frontend-xi-one-33.vercel.app",
     ],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/")
 def home():
@@ -62,7 +62,7 @@ async def transcribe_audio_api(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Audio file is empty")
 
     try:
-        if not file.filename.lower().endswith(".mp3"):
+        if file.filename.lower().endswith(".webm"):
             audio_bytes = webm_to_mp3(audio_bytes)
 
         audio_duration = audio_duration_seconds(audio_bytes)
