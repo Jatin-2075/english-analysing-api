@@ -19,7 +19,11 @@ def _ensure_ffmpeg() -> None:
         os.environ["PATH"] = ffmpeg_directory + os.pathsep + os.environ.get("PATH", "")
 
 
-def speech_to_text(audio_bytes: bytes, language: str = "en") -> str:
+def speech_to_text(
+    audio_bytes: bytes,
+    language: str = "en",
+    initial_prompt: str | None = None,
+) -> str:
     if not audio_bytes:
         raise ValueError("Audio data is empty")
 
@@ -31,7 +35,10 @@ def speech_to_text(audio_bytes: bytes, language: str = "en") -> str:
 
     try:
         try:
-            result = _model.transcribe(tmp_path, language=language, fp16=False)
+            options = {"language": language, "fp16": False}
+            if initial_prompt:
+                options["initial_prompt"] = initial_prompt
+            result = _model.transcribe(tmp_path, **options)
         except RuntimeError as exc:
             raise ValueError(f"Unable to decode the MP3 audio: {exc}") from exc
     finally:

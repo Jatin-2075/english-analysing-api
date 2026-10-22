@@ -6,6 +6,13 @@ __pycache__/
 venv/
 .venv/
 
+# Node
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
 # Environment variables and secrets
 .env
 .env.*
@@ -34,3 +41,8 @@ htmlcov/
 *.mp3
 *.wav
 *.flac
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3

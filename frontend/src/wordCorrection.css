@@ -1,0 +1,35 @@
+.wc-hint { display: flex; align-items: center; gap: 6px; margin: 6px 0 12px; color: #78983a; font-size: 11px; }
+.wc-text { line-height: 2; }
+.wc-word {
+  font: inherit; color: inherit; background: none; border: 0; border-bottom: 1px dashed transparent;
+  padding: 0 1px; border-radius: 4px; cursor: pointer;
+}
+.wc-word:hover, .wc-word:focus-visible { background: #f1f7e7; border-bottom-color: #8bbd27; outline: none; }
+.wc-word.active { background: #d8fb72; }
+.wc-word.fixed { background: #e8f5cf; color: #3d5a12; font-weight: 600; }
+
+.wc-panel { margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fbfcf8; max-width: 440px; }
+.wc-panel-head { display: flex; justify-content: space-between; align-items: center; font-size: 13px; }
+.wc-close { background: none; border: 0; cursor: pointer; color: #77806d; display: grid; place-items: center; }
+.wc-label { display: block; margin: 12px 0 6px; font-size: 11px; font-weight: 700; color: #5b6352; }
+.wc-input { width: 100%; font: inherit; font-size: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+.wc-input:focus { outline: 2px solid #d8fb72; border-color: #a9d449; }
+.wc-previous { margin-top: 10px; }
+.wc-previous small { color: #838a7f; font-size: 10px; }
+.wc-previous div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.wc-previous button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 99px; border: 1px solid #e1ebcf; background: #f1f7e7; cursor: pointer; }
+.wc-check { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #5b6352; }
+.wc-error { color: #985c5c; font-size: 12px; margin: 10px 0 0; }
+.wc-actions { display: flex; gap: 8px; margin-top: 14px; }
+.wc-save { font: 700 13px 'DM Sans', sans-serif; padding: 9px 16px; border: 0; border-radius: 9px; background: #d8fb72; color: #24271f; cursor: pointer; }
+.wc-save:disabled { opacity: .6; cursor: default; }
+.wc-cancel { font: 500 13px 'DM Sans', sans-serif; padding: 9px 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; cursor: pointer; }
+.wc-saved { display: flex; align-items: center; gap: 6px; margin: 12px 0 0; color: #5c7f1f; font-size: 12px; }
+
+.rf { margin-top: 14px; }
+.rf h3 { margin: 5px 0 10px; font: 700 16px Manrope, sans-serif; }
+.rf-stars { display: flex; gap: 4px; margin-bottom: 12px; }
+.rf-stars button { background: none; border: 0; padding: 2px; cursor: pointer; color: #c9cfc0; }
+.rf-stars button.on, .rf-stars button:hover { color: #a9d449; }
+.rf textarea { resize: vertical; }
+.wc-applied { margin: 10px 0 0; padding: 8px 12px; border-radius: 9px; background: #f1f7e7; color: #46522b; font-size: 12px; }

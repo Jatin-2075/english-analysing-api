@@ -8,3 +8,7 @@ soundfile
 openai-whisper
 language-tool-python
 requests
+torch
+transformers
+sentencepiece
+sqlalchemy

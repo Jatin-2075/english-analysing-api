@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import "./results.css";
+import WordCorrection from "./WordCorrection";
+import RatingFeedback from "./rating_feedback";
+import PersonalDictionary from "./PersonalDictionary";
 import {
   AlertCircle,
   AudioLines,
@@ -57,6 +60,10 @@ type Analysis = {
 };
 
 type Data = {
+  assessment_id?: string;
+  original_transcript?: string;
+  corrections_applied?: { original: string; corrected: string; count: number }[];
+  dictionary_suggestions?: { heard: string; suggested: string; confidence: number }[];
   transcript?: string;
   text?: string;
   analysis?: Analysis;
@@ -167,12 +174,21 @@ function ResultsView({ data }: { data: Data }) {
       <div className="resultshead">
         <div><small>YOUR RESULTS</small><h2>Assessment overview</h2></div>
       </div>
-      {(data.transcript || data.text) && (
+      {data.transcript ? (
+        <WordCorrection transcript={data.transcript} api={API} />
+      ) : data.text ? (
         <article className="transcript">
           <b><AudioLines size={15} /> Transcript / text</b>
-          <p>{data.transcript || data.text}</p>
+          <p>{data.text}</p>
         </article>
-      )}
+      ) : null}
+      {data.dictionary_suggestions?.length ? (
+        <article className="dictionary-suggestions">
+          <b>Personal dictionary suggestions</b>
+          <p>Review these possible name corrections before using them.</p>
+          <div>{data.dictionary_suggestions.map((item) => <span key={`${item.heard}-${item.suggested}`}>{item.heard} → {item.suggested}</span>)}</div>
+        </article>
+      ) : null}
       <div className="metrics">
         {grammar && <Metric label="Grammar" value={`${numberOr(grammar.grammar_score).toFixed(0)}%`} detail={`${numberOr(grammar.grammar_error_count)} suggestions`} icon={<ListChecks size={17} />} accent="lime" />}
         {fluency && <Metric label="Fluency" value={`${numberOr(fluency.fluency_score).toFixed(0)}%`} detail={fluency.fluency_level || "Speaking flow"} icon={<Volume2 size={17} />} accent="blue" />}
@@ -205,6 +221,15 @@ function ResultsView({ data }: { data: Data }) {
           )}
         </div>
       </div>
+      <RatingFeedback
+        key={data.assessment_id}
+        api={API}
+        assessmentId={data.assessment_id}
+        score={(() => {
+          const scores = [grammar?.grammar_score, fluency?.fluency_score].filter((value): value is number => typeof value === "number");
+          return scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : undefined;
+        })()}
+      />
       <p className="disclaimer"><ShieldCheck size={14} /> Automated feedback is guidance, not an official proficiency score.</p>
     </section>
   );
@@ -305,6 +330,7 @@ export default function App() {
         <nav><button className={mode === "audio" ? "active" : ""} onClick={() => { setMode("audio"); setError(""); setData(null); }}><Mic size={16} /> Voice & audio</button><button className={mode === "text" ? "active" : ""} onClick={() => { setMode("text"); setError(""); setData(null); }}><FileText size={16} /> Written text</button></nav>
         {mode === "audio" ? <div className="panel"><div className="record"><div className="mic"><Mic size={27} /></div><h3>{recording ? "Listening to you…" : file && preview ? "Recording ready" : "Speak naturally"}</h3><p>Record a response or upload an existing audio file.</p>{recording && <div className="live">● REC {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}</div>}<div className="buttons">{recording ? <button className="dark" onClick={stopRec}><Square size={15} /> Stop recording</button> : <button className="dark" onClick={startRec}><Mic size={15} /> Start recording</button>}<span>or</span><button onClick={() => input.current?.click()}><Upload size={15} /> Upload audio</button><input ref={input} hidden type="file" accept="audio/*" onChange={(event) => { setFile(event.target.files?.[0] || null); setPreview(""); setData(null); }} /></div></div>{file && <div className="file"><b>{file.name}</b><span>{(file.size / 1048576).toFixed(2)} MB</span>{preview && <audio controls src={preview} />}</div>}<div className="drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); setFile(event.dataTransfer.files[0] || null); setPreview(""); setData(null); }}><Upload size={16} /> Drop an audio file here. MP3, WAV, M4A, WebM and OGG supported.</div><div className="bottom"><span><ShieldCheck size={14} /> Sent to your configured backend</span><button className="primary" disabled={!file || busy || recording} onClick={sendAudio}>{busy ? "Analyzing…" : <>Analyze audio <Send size={14} /></>}</button></div></div> : <div className="panel"><div className="text-head"><b><FileText size={16} /> Your writing</b><span>{text.trim() ? text.trim().split(/\s+/).length : 0} words</span></div><textarea rows={9} value={text} onChange={(event) => setText(event.target.value)} placeholder="Write or paste your English text here…" /><p className="hint"><Check size={14} /> Grammar and filler words can be analyzed from text.</p><div className="bottom"><span>Text analysis</span><button className="primary" disabled={!text.trim() || busy} onClick={sendText}>{busy ? "Analyzing…" : <>Analyze text <Send size={14} /></>}</button></div></div>}
       </section>
+      <PersonalDictionary api={API} />
       {error && <div className="error"><AlertCircle size={18} /><div><b>Analysis failed</b><p>{error}</p></div></div>}
       {data && <ResultsView data={data} />}
       <section className="features"><small>WHAT YOU GET</small><h2>Five lenses on your English</h2><div><article><b>01 / Grammar</b><p>Find possible grammar issues.</p></article><article><b>02 / Fluency</b><p>Review the fluency estimate.</p></article><article><b>03 / Pace</b><p>Understand your WPM.</p></article><article><b>04 / Pauses</b><p>See detected silent intervals.</p></article><article><b>05 / Fillers</b><p>Identify filler words.</p></article></div></section>
