@@ -1,79 +1,176 @@
-import difflib
+
+import json
+import os
 import re
-from functools import lru_cache
+from pathlib import Path
+from typing import Any
 
-import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
-MODEL_NAME = "grammarly/coedit-large"
+BACKEND_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(BACKEND_DIR / ".env")
 
+API_KEY = os.getenv("GEMINI_API_KEY")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
-@lru_cache(maxsize=1)
-def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME)
-    model.eval()
-    return tokenizer, model
-
-
-def _normalize(words):
-    return re.sub(r"[^\w]", "", " ".join(words)).lower()
+client = genai.Client(api_key=API_KEY) if API_KEY else None
 
 
-def build_errors(original: str, corrected: str):
-    """Word-level diff between the original and the model-corrected text."""
-    a, b = original.split(), corrected.split()
-    errors = []
-    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b).get_opcodes():
-        if tag == "equal":
-            continue
-        old, new = a[i1:i2], b[j1:j2]
-        if tag == "replace" and _normalize(old) == _normalize(new):
-            category, message = "Punctuation / capitalization", "Fix punctuation or capitalization"
-        elif tag == "replace":
-            category, message = "Wording", "Consider rewording"
-        elif tag == "delete":
-            category, message = "Unnecessary word", "This word is probably not needed"
-        else:
-            category, message = "Missing word", "A word seems to be missing"
-        mistake = " ".join(old) or (a[i1 - 1] if i1 > 0 else "")
-        errors.append({
-            "message": message,
-            "mistake": mistake,
-            "suggestions": [" ".join(new)] if new else [],
-            "category": category,
-        })
-    return errors, len(a)
+class GrammarAnalysisError(Exception):
+    """Raised when grammar analysis cannot be completed."""
 
 
-def analyze_grammar(text: str) -> dict:
+def _parse_json(response_text: str) -> dict[str, Any]:
+    text = response_text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+
+    try:
+        result = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise GrammarAnalysisError(
+            "The grammar model returned invalid JSON."
+        ) from exc
+
+    if not isinstance(result, dict):
+        raise GrammarAnalysisError("Invalid grammar response format.")
+
+    return result
+
+
+def analyze_grammar(text: str) -> dict[str, Any]:
+    """Analyze an English transcript using Gemini."""
+
+    if not isinstance(text, str):
+        raise ValueError("text must be a string")
+
     text = text.strip()
 
     if not text:
-        return {"original_text": text, "corrected_text": text, "changes_detected": False,
-                "word_count": 0, "grammar_error_count": 0, "grammar_score": 0, "errors": [],
-                "error": "Text cannot be empty"}
+        return {
+            "score": 100.0,
+            "total_words": 0,
+            "error_count": 0,
+            "grammar_errors": [],
+            "corrected_text": "",
+            "feedback": "No text was provided.",
+        }
 
-    tokenizer, model = load_model()
+    if len(text) > 20000:
+        raise ValueError("Text is too long. Maximum length is 20000 characters.")
 
-    prompt = f"Fix grammatical errors in this sentence: {text}"
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    if client is None:
+        raise GrammarAnalysisError(
+            "GEMINI_API_KEY is missing. Configure it in Backend/.env."
+        )
 
-    with torch.inference_mode():
-        outputs = model.generate(**inputs, max_new_tokens=256, num_beams=4)
+    prompt = f"""
+You are an English grammar assessment assistant.
 
-    corrected = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+Analyze the student's original transcript for genuine grammar errors.
+Preserve the intended meaning. Do not invent errors or penalize acceptable
+informal speech. Avoid duplicate errors. Focus on grammar, tense,
+subject-verb agreement, articles, prepositions, sentence structure,
+pronouns, and word choice.
 
-    errors, word_count = build_errors(text, corrected)
-    changed = sum(max(1, len(e["mistake"].split())) for e in errors)
-    score = max(0, round(100 * (1 - changed / max(word_count, 1))))
+Return valid JSON only, using exactly this structure:
+{{
+  "grammar_errors": [
+    {{
+      "original": "incorrect phrase",
+      "correction": "correct phrase",
+      "explanation": "Short explanation",
+      "category": "tense"
+    }}
+  ],
+  "corrected_text": "Corrected complete transcript",
+  "feedback": "Brief constructive feedback"
+}}
+
+If no errors exist, return an empty grammar_errors array.
+
+Transcript:
+<transcript>
+{text}
+</transcript>
+"""
+
+    try:
+        response = client.models.generate_content(
+            model=MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                response_mime_type="application/json",
+            ),
+        )
+
+        if not response.text:
+            raise GrammarAnalysisError("The grammar model returned no text.")
+
+        data = _parse_json(response.text)
+
+    except GrammarAnalysisError:
+        raise
+    except Exception as exc:
+        raise GrammarAnalysisError(
+            "Grammar analysis is temporarily unavailable."
+        ) from exc
+
+    raw_errors = data.get("grammar_errors", [])
+
+    if not isinstance(raw_errors, list):
+        raise GrammarAnalysisError("Invalid grammar_errors field.")
+
+    errors = []
+
+    for item in raw_errors:
+        if not isinstance(item, dict):
+            continue
+
+        original = item.get("original")
+        correction = item.get("correction")
+        explanation = item.get("explanation")
+        category = item.get("category", "other")
+
+        if not all(
+            isinstance(value, str)
+            for value in (original, correction, explanation, category)
+        ):
+            continue
+
+        errors.append({
+            "original": original,
+            "correction": correction,
+            "explanation": explanation,
+            "category": category,
+        })
+
+    corrected_text = data.get("corrected_text", text)
+    feedback = data.get("feedback", "Grammar analysis completed.")
+
+    if not isinstance(corrected_text, str):
+        corrected_text = text
+
+    if not isinstance(feedback, str):
+        feedback = "Grammar analysis completed."
+
+    total_words = len(re.findall(r"\b[\w'-]+\b", text))
+    error_count = len(errors)
+
+    score = round(max(0.0, 100.0 - error_count * 5.0), 2)
 
     return {
-        "original_text": text,
-        "corrected_text": corrected,
-        "changes_detected": corrected != text,
-        "word_count": word_count,
-        "grammar_error_count": len(errors),
-        "grammar_score": score,
-        "errors": errors,
+        "score": score,
+        "total_words": total_words,
+        "error_count": error_count,
+        "grammar_errors": errors,
+        "corrected_text": corrected_text,
+        "feedback": feedback,
     }
+
+
+def grammar_analysis(text: str) -> dict[str, Any]:
+    return analyze_grammar(text)

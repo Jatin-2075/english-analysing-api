@@ -41,8 +41,3 @@ htmlcov/
 *.mp3
 *.wav
 *.flac
-
-# Local databases
-*.db
-*.sqlite
-*.sqlite3

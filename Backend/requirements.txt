@@ -8,6 +8,8 @@ soundfile
 openai-whisper
 language-tool-python
 requests
+google-genai
+python-dotenv
 torch
 transformers
 sentencepiece

@@ -117,7 +117,7 @@ machine connected to the internet until that download completes.
 From the project root, with the virtual environment activated:
 
 ```powershell
-python -m uvicorn Backend.main:app --reload
+python -m uvicorn Backend.app.main:app --reload
 ```
 
 The server is then available at:
@@ -129,7 +129,7 @@ The server is then available at:
 For a production-style local run without the file watcher:
 
 ```powershell
-python -m uvicorn Backend.main:app --host 0.0.0.0 --port 8000
+python -m uvicorn Backend.app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## API reference
@@ -324,7 +324,7 @@ improve accuracy but require more download size and memory.
 Run the application with automatic reload while developing:
 
 ```powershell
-python -m uvicorn Backend.main:app --reload
+python -m uvicorn Backend.app.main:app --reload
 ```
 
 The service modules expose small Python functions, so they can also be tested

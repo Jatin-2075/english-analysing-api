@@ -21,21 +21,21 @@ import {
   Volume2,
 } from "lucide-react";
 
-const API = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const API = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 type GrammarError = {
-  message: string;
-  mistake: string;
-  suggestions: string[];
+  original: string;
+  correction: string;
+  explanation: string;
   category: string;
 };
 
 type Analysis = {
   grammar?: {
-    word_count?: number;
-    grammar_error_count?: number;
-    grammar_score?: number;
-    errors?: GrammarError[];
+    total_words?: number;
+    error_count?: number;
+    score?: number;
+    grammar_errors?: GrammarError[];
   };
   fluency?: {
     fluency_score?: number;
@@ -118,7 +118,7 @@ function ScoreRing({ score, label }: { score: number; label: string }) {
 }
 
 function GrammarPanel({ grammar }: { grammar: NonNullable<Analysis["grammar"]> }) {
-  const errors = grammar.errors || [];
+  const errors = grammar.grammar_errors || [];
   return (
     <section className="detail-card grammar-card">
       <div className="detail-title">
@@ -126,27 +126,27 @@ function GrammarPanel({ grammar }: { grammar: NonNullable<Analysis["grammar"]> }
           <span className="eyebrow">LANGUAGE QUALITY</span>
           <h3>Grammar & writing</h3>
         </div>
-        <ScoreRing score={numberOr(grammar.grammar_score)} label="grammar score" />
+        <ScoreRing score={numberOr(grammar.score)} label="grammar score" />
       </div>
       <div className="detail-stats">
-        <div><b>{numberOr(grammar.word_count)}</b><span>words checked</span></div>
-        <div><b>{numberOr(grammar.grammar_error_count)}</b><span>items to review</span></div>
+        <div><b>{numberOr(grammar.total_words)}</b><span>words checked</span></div>
+        <div><b>{numberOr(grammar.error_count)}</b><span>items to review</span></div>
       </div>
       {errors.length > 0 ? (
         <div className="issue-list">
           <h4>Suggestions for improvement</h4>
           {errors.map((error, index) => (
-            <article className="issue" key={`${error.mistake}-${index}`}>
+            <article className="issue" key={`${error.original}-${index}`}>
               <div className="issue-mark">{index + 1}</div>
               <div className="issue-content">
                 <div className="issue-heading">
-                  <b>{error.mistake || "Review this phrase"}</b>
+                  <b>{error.original || "Review this phrase"}</b>
                   <span>{formatLabel(error.category || "suggestion")}</span>
                 </div>
-                <p>{error.message}</p>
-                {error.suggestions.length > 0 && (
+                <p>{error.explanation}</p>
+                {error.correction && (
                   <div className="suggestions">
-                    {error.suggestions.map((suggestion) => <span key={suggestion}>{suggestion}</span>)}
+                    <span>{error.correction}</span>
                   </div>
                 )}
               </div>
@@ -190,7 +190,7 @@ function ResultsView({ data }: { data: Data }) {
         </article>
       ) : null}
       <div className="metrics">
-        {grammar && <Metric label="Grammar" value={`${numberOr(grammar.grammar_score).toFixed(0)}%`} detail={`${numberOr(grammar.grammar_error_count)} suggestions`} icon={<ListChecks size={17} />} accent="lime" />}
+        {grammar && <Metric label="Grammar" value={`${numberOr(grammar.score).toFixed(0)}%`} detail={`${numberOr(grammar.error_count)} suggestions`} icon={<ListChecks size={17} />} accent="lime" />}
         {fluency && <Metric label="Fluency" value={`${numberOr(fluency.fluency_score).toFixed(0)}%`} detail={fluency.fluency_level || "Speaking flow"} icon={<Volume2 size={17} />} accent="blue" />}
         {pace && <Metric label="Speaking pace" value={`${numberOr(pace.words_per_minute).toFixed(0)} WPM`} detail={`${numberOr(pace.audio_duration_seconds).toFixed(1)} seconds`} icon={<Gauge size={17} />} accent="violet" />}
         {pauses && <Metric label="Pauses" value={`${numberOr(pauses.pause_count)}`} detail={`${numberOr(pauses.average_pause_duration_seconds).toFixed(2)} sec average`} icon={<Pause size={17} />} accent="amber" />}
@@ -226,7 +226,7 @@ function ResultsView({ data }: { data: Data }) {
         api={API}
         assessmentId={data.assessment_id}
         score={(() => {
-          const scores = [grammar?.grammar_score, fluency?.fluency_score].filter((value): value is number => typeof value === "number");
+          const scores = [grammar?.score, fluency?.fluency_score].filter((value): value is number => typeof value === "number");
           return scores.length ? Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length) : undefined;
         })()}
       />

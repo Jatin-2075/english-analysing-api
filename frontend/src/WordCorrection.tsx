@@ -39,7 +39,12 @@ export default function WordCorrection({ transcript, api }: Props) {
     let cancelled = false;
     fetch(`${api}/feedback/words/${encodeURIComponent(heardWord)}`)
       .then((response) => (response.ok ? response.json() : []))
-      .then((rows: Previous[]) => { if (!cancelled) setPrevious(rows); })
+      .then((rows: Previous[]) => {
+        if (cancelled) return;
+        setPrevious(rows);
+        const savedWord = rows.find((row) => row.confirmed_word?.trim())?.confirmed_word?.trim();
+        if (savedWord) setValue((current) => current.trim() ? current : savedWord);
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [heardWord, api]);
@@ -76,7 +81,15 @@ export default function WordCorrection({ transcript, api }: Props) {
         }),
       });
       if (!response.ok) throw new Error();
-      setCorrected((current) => ({ ...current, [selected]: confirmed }));
+      setCorrected((current) => {
+        const updated = { ...current };
+        tokens.forEach((token, index) => {
+          if (token.isWord && token.core.toLowerCase() === heardWord.toLowerCase()) {
+            updated[index] = confirmed;
+          }
+        });
+        return updated;
+      });
       setSelected(null);
     } catch {
       setError("Could not save your correction. Please try again.");
@@ -136,7 +149,7 @@ export default function WordCorrection({ transcript, api }: Props) {
               <small>Corrections saved before:</small>
               <div>
                 {Array.from(new Set(previous.map((row) => row.confirmed_word).filter(Boolean) as string[])).slice(0, 5).map((word) => (
-                  <button type="button" key={word} onClick={() => setValue(word)}>{word}</button>
+                  <button type="button" key={word} onClick={() => setValue(word)} aria-label={`Use correction ${word}`}>{word}</button>
                 ))}
               </div>
             </div>

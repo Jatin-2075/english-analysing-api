@@ -1,11 +1,16 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..schemas.models import WordFeedback, AssessmentFeedback
 
 
 def save_word_feedback(db: Session, original_word: str, suggested_word: str | None = None, confirmed_word: str | None = None, accepted: bool | None = None, context: str | None = None, is_name: bool = False) -> WordFeedback:
+    normalized_original = original_word.strip()
+    db.query(WordFeedback).filter(
+        func.lower(WordFeedback.original_word) == normalized_original.lower(),
+    ).delete(synchronize_session=False)
     feedback = WordFeedback(
-        original_word=original_word.strip(),
+        original_word=normalized_original,
         suggested_word=suggested_word.strip() if suggested_word else None,
         confirmed_word=confirmed_word.strip() if confirmed_word else None,
         accepted=accepted,
